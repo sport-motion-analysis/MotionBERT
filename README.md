@@ -83,6 +83,7 @@ E = MotionBERT.get_representation(x)
 | Action Recognition (x-view, ft) | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgTaNiXw2Nal-g37M?e=lSkE4T) | [action/MB_ft_NTU60_xview.yaml](configs/action/MB_ft_NTU60_xview.yaml) | 93.0% (Top1 Acc) |
 | Mesh (with 3DPW, ft)            | [OneDrive](https://1drv.ms/f/s!AvAdh0LSjEOlgTmgYNslCDWMNQi9?e=WjcB1F) | [mesh/MB_ft_pw3d.yaml](configs/mesh/MB_ft_pw3d.yaml)              | 88.1mm (MPVE)    |
 
+IMPORTANT : Download the MotionBERT-Lite and put it under : /checkpoint/pose3d/FT_MB_lite_MB_ft_h36m_global_lite and rename from `latest_epoch.bin` to `best_epoch.bin` 
 In most use cases (especially with finetuning), `MotionBERT-Lite` gives a similar performance with lower computation overhead. 
 
 
