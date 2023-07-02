@@ -30,6 +30,7 @@ def _output_representation(test_loader, backbone_model):
     backbone_model.eval()
     # concat the output of all batches
     output_all = torch.Tensor()
+    label_all = torch.Tensor()
     with torch.no_grad():
         for idx, (batch_input, batch_gt) in tqdm(enumerate(test_loader)):
             # print(batch_input.shape) # [128, 243, 17, 3]
@@ -39,8 +40,11 @@ def _output_representation(test_loader, backbone_model):
             output = backbone_model.module.get_representation(batch_input)
             output = output.cpu()
             output_all = torch.cat((output_all, output), dim=0)
+            # and ground truth gt
+            batch_gt = batch_gt.cpu()
+            label_all = torch.cat((label_all, batch_gt), dim=0)
             print("progress: ", idx, " / ", len(test_loader))
-    return output_all # instances, frames(243), joints(17), channels(512)
+    return output_all, label_all # instances, frames(243), joints(17), channels(512)
 
 def output_representation(args, opts):
     try:
@@ -81,8 +85,13 @@ def output_representation(args, opts):
     train_loader = DataLoader(ntu60_xsub_train, **trainloader_params)
     test_loader = DataLoader(ntu60_xsub_val, **testloader_params)
     
-    all_output = _output_representation(test_loader, model_backbone)
+    all_output, all_label = _output_representation(train_loader, model_backbone)
     print(all_output.shape)
+    print(all_label.shape)
+    # save embeddings as embeddings.npy
+    np.save(os.path.join(opts.checkpoint, "embeddings.npy"), all_output)
+    np.save(os.path.join(opts.checkpoint, "labels.npy"), all_label)
+    print("Saved embeddings.npy and labels.npy")
 
 if __name__ == "__main__":
     opts = parse_args()
