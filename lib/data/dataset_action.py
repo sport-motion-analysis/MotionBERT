@@ -173,6 +173,7 @@ class NTURGBD(ActionDataset):
     def __getitem__(self, idx):
         'Generates one sample of data'
         motion, label = self.motions[idx], self.labels[idx] # (M,T,J,C)
+        motion = motion[0]
         if self.random_move:
             motion = random_move(motion)
         if self.scale_range:
