@@ -44,6 +44,8 @@ def _output_representation(test_loader, backbone_model):
             batch_gt = batch_gt.cpu()
             label_all = torch.cat((label_all, batch_gt), dim=0)
             print("progress: ", idx, " / ", len(test_loader))
+            # print("output_all.shape: ", output_all.shape)
+            # print("label_all.shape: ", label_all.shape)
     return output_all, label_all # instances, frames(243), joints(17), channels(512)
 
 def output_representation(args, opts):
@@ -64,8 +66,8 @@ def output_representation(args, opts):
     print('Loading dataset...')
     trainloader_params = {
           'batch_size': BATCH_SIZE,
-          'shuffle': True,
-          'num_workers': 2,
+          'shuffle': False,
+          'num_workers': 1,
           'pin_memory': True,
           'prefetch_factor': 4,
           'persistent_workers': True
@@ -73,13 +75,13 @@ def output_representation(args, opts):
     testloader_params = {
           'batch_size': BATCH_SIZE,
           'shuffle': False,
-          'num_workers': 2,
+          'num_workers': 1,
           'pin_memory': True,
           'prefetch_factor': 4,
           'persistent_workers': True
     }
     data_path = 'data/action/%s.pkl' % args.dataset
-    ntu60_xsub_train = NTURGBD(data_path=data_path, data_split=args.data_split+'_train', n_frames=args.clip_len, random_move=args.random_move, scale_range=args.scale_range_train)
+    ntu60_xsub_train = NTURGBD(data_path=data_path, data_split=args.data_split+'_val', n_frames=args.clip_len, random_move=False, scale_range=args.scale_range_test)
     ntu60_xsub_val = NTURGBD(data_path=data_path, data_split=args.data_split+'_val', n_frames=args.clip_len, random_move=False, scale_range=args.scale_range_test)
 
     train_loader = DataLoader(ntu60_xsub_train, **trainloader_params)
