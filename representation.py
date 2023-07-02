@@ -88,6 +88,7 @@ def output_representation(args, opts):
     test_loader = DataLoader(ntu60_xsub_val, **testloader_params)
     
     all_output, all_label = _output_representation(train_loader, model_backbone)
+    # all_output, all_label = _output_representation(test_loader, model_backbone)
     print(all_output.shape)
     print(all_label.shape)
     # save embeddings as embeddings.npy
