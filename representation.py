@@ -12,6 +12,9 @@ from lib.utils.tools import *
 from lib.utils.learning import *
 from lib.model.loss import *
 from lib.data.dataset_action import NTURGBD
+import numpy as np
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 random.seed(0)
 np.random.seed(0)
@@ -29,8 +32,8 @@ def parse_args():
 def _output_representation(test_loader, backbone_model):
     backbone_model.eval()
     # concat the output of all batches
-    output_all = torch.Tensor()
-    label_all = torch.Tensor()
+    output_all = []
+    label_all = []
     with torch.no_grad():
         for idx, (batch_input, batch_gt) in tqdm(enumerate(test_loader)):
             # print(batch_input.shape) # [128, 243, 17, 3]
@@ -38,14 +41,19 @@ def _output_representation(test_loader, backbone_model):
                 batch_gt = batch_gt.cuda()
                 batch_input = batch_input.cuda()
             output = backbone_model.module.get_representation(batch_input)
-            output = output.cpu()
-            output_all = torch.cat((output_all, output), dim=0)
+            output = output.cpu().detach()
+
+            output_all.append(output)
+            # output_all = torch.cat((output_all, output), dim=0)
             # and ground truth gt
             batch_gt = batch_gt.cpu()
-            label_all = torch.cat((label_all, batch_gt), dim=0)
+            label_all.append(batch_gt)
             print("progress: ", idx, " / ", len(test_loader))
-            # print("output_all.shape: ", output_all.shape)
-            # print("label_all.shape: ", label_all.shape)
+
+            if idx == 2:
+                break
+        output_all = torch.cat(output_all, dim=0)
+        label_all = torch.cat(label_all, dim=0)
     return output_all, label_all # instances, frames(243), joints(17), channels(512)
 
 def output_representation(args, opts):
@@ -89,14 +97,40 @@ def output_representation(args, opts):
     
     all_output, all_label = _output_representation(train_loader, model_backbone)
     # all_output, all_label = _output_representation(test_loader, model_backbone)
-    print(all_output.shape)
-    print(all_label.shape)
-    # save embeddings as embeddings.npy
-    np.save(os.path.join(opts.checkpoint, "embeddings.npy"), all_output)
-    np.save(os.path.join(opts.checkpoint, "labels.npy"), all_label)
+
+    embeddings = np.array([x.numpy() for x in all_output], dtype=object)
+    labels = np.array([x.numpy() for x in all_label], dtype=object)
+    np.save(os.path.join(opts.checkpoint, "embeddings.npy"), embeddings)
+    np.save(os.path.join(opts.checkpoint, "labels.npy"), labels)
     print("Saved embeddings.npy and labels.npy")
 
+def visualize_representation(features, labels):
+    # Reshape the features to a 2D array of shape (N*243, 17*512)
+    flat_features = np.reshape(features, (features.shape[0]*243, -1))
+
+    # Standardize the features
+    mean = np.mean(flat_features, axis=0)
+    std = np.std(flat_features, axis=0)
+    std_features = (flat_features - mean) / std
+
+    # Apply t-SNE to reduce the dimensionality to 2 dimensions
+    tsne = TSNE(n_components=2)
+    tsne_features = tsne.fit_transform(std_features)
+
+    # Plot the reduced features using a scatter plot
+    plt.figure(figsize=(10, 5))
+    plt.scatter(tsne_features[:, 0], tsne_features[:, 1], c=labels)
+    plt.colorbar()
+    plt.savefig("tsne.png")
+    
 if __name__ == "__main__":
     opts = parse_args()
     args = get_config(opts.config)
-    output_representation(args, opts)
+    # output_representation(args, opts)
+
+    # load embeddings.npy and labels.npy
+    features = np.load(os.path.join(opts.checkpoint, "embeddings.npy"), allow_pickle=True)
+    labels = np.load(os.path.join(opts.checkpoint, "labels.npy"), allow_pickle=True)
+    print("features.shape: ", features.shape)
+    print("labels.shape: ", labels.shape)
+    visualize_representation(features, labels)
