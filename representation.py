@@ -49,9 +49,6 @@ def _output_representation(test_loader, backbone_model):
             batch_gt = batch_gt.cpu()
             label_all.append(batch_gt)
             print("progress: ", idx, " / ", len(test_loader))
-
-            if idx == 2:
-                break
         output_all = torch.cat(output_all, dim=0)
         label_all = torch.cat(label_all, dim=0)
     return output_all, label_all # instances, frames(243), joints(17), channels(512)
@@ -106,31 +103,36 @@ def output_representation(args, opts):
 
 def visualize_representation(features, labels):
     # Reshape the features to a 2D array of shape (N*243, 17*512)
-    flat_features = np.reshape(features, (features.shape[0]*243, -1))
+    flat_features = features.reshape((features.shape[0], -1))
 
-    # Standardize the features
-    mean = np.mean(flat_features, axis=0)
-    std = np.std(flat_features, axis=0)
-    std_features = (flat_features - mean) / std
+
+    # # Standardize the features
+    # mean = np.mean(flat_features, axis=0)
+    # std = np.std(flat_features, axis=0)
+    # std_features = (flat_features - mean) / std
 
     # Apply t-SNE to reduce the dimensionality to 2 dimensions
-    tsne = TSNE(n_components=2)
-    tsne_features = tsne.fit_transform(std_features)
+    tsne = TSNE(n_components=2, random_state=42, init='pca', learning_rate='auto', perplexity=30)
+    embedded_data = tsne.fit_transform(flat_features)
 
     # Plot the reduced features using a scatter plot
     plt.figure(figsize=(10, 5))
-    plt.scatter(tsne_features[:, 0], tsne_features[:, 1], c=labels)
+    plt.scatter(embedded_data[:, 0], embedded_data[:, 1], c=labels)
     plt.colorbar()
     plt.savefig("tsne.png")
+    print("Saved tsne.png")
     
 if __name__ == "__main__":
     opts = parse_args()
     args = get_config(opts.config)
-    # output_representation(args, opts)
+
+    output_representation(args, opts)
 
     # load embeddings.npy and labels.npy
+    print("Loading embeddings.npy and labels.npy...")
     features = np.load(os.path.join(opts.checkpoint, "embeddings.npy"), allow_pickle=True)
     labels = np.load(os.path.join(opts.checkpoint, "labels.npy"), allow_pickle=True)
     print("features.shape: ", features.shape)
     print("labels.shape: ", labels.shape)
+    print("Visualizing...")
     visualize_representation(features, labels)
