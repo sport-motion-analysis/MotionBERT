@@ -15,6 +15,8 @@ from lib.data.dataset_action import NTURGBD
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import h5py
+
 
 random.seed(0)
 np.random.seed(0)
@@ -92,14 +94,18 @@ def output_representation(args, opts):
     train_loader = DataLoader(ntu60_xsub_train, **trainloader_params)
     test_loader = DataLoader(ntu60_xsub_val, **testloader_params)
     
-    all_output, all_label = _output_representation(train_loader, model_backbone)
-    # all_output, all_label = _output_representation(test_loader, model_backbone)
+    # all_output, all_label = _output_representation(train_loader, model_backbone)
+    all_output, all_label = _output_representation(test_loader, model_backbone)
 
     embeddings = np.array([x.numpy() for x in all_output], dtype=object)
     labels = np.array([x.numpy() for x in all_label], dtype=object)
-    np.save(os.path.join(opts.checkpoint, "embeddings.npy"), embeddings)
-    np.save(os.path.join(opts.checkpoint, "labels.npy"), labels)
-    print("Saved embeddings.npy and labels.npy")
+    # np.save(os.path.join(opts.checkpoint, "embeddings.npy"), embeddings)
+    # np.save(os.path.join(opts.checkpoint, "labels.npy"), labels)
+    batch_size = 1000
+    num_batches = len(embeddings) // batch_size
+
+    with h5py.File(os.path.join(opts.checkpoint, "embeddings.h5"), "w") as f:
+        f.create_dataset("embeddings", data=embeddings)
 
 def visualize_representation(features, labels):
     # Reshape the features to a 2D array of shape (N*243, 17*512)
@@ -128,11 +134,21 @@ if __name__ == "__main__":
 
     output_representation(args, opts)
 
-    # load embeddings.npy and labels.npy
-    print("Loading embeddings.npy and labels.npy...")
-    features = np.load(os.path.join(opts.checkpoint, "embeddings.npy"), allow_pickle=True)
-    labels = np.load(os.path.join(opts.checkpoint, "labels.npy"), allow_pickle=True)
-    print("features.shape: ", features.shape)
-    print("labels.shape: ", labels.shape)
-    print("Visualizing...")
-    visualize_representation(features, labels)
+    # # load embeddings.npy and labels.npy
+    # print("Loading embeddings.npy and labels.npy...")
+    # features = []
+    # labels = []
+    # for i in range(10):
+    #     features.append(np.load(os.path.join(opts.checkpoint, f"embeddings_{i}.npy"), allow_pickle=True))
+    #     labels.append(np.load(os.path.join(opts.checkpoint, f"labels_{i}.npy"), allow_pickle=True))
+    # features = np.concatenate(features, axis=0)
+    # labels = np.concatenate(labels, axis=0)
+    # print("features.shape: ", features.shape)
+    # print("labels.shape: ", labels.shape)
+    
+    # features = np.load(os.path.join(opts.checkpoint, "embeddings.npy"), allow_pickle=True)
+    # labels = np.load(os.path.join(opts.checkpoint, "labels.npy"), allow_pickle=True)
+    # print("features.shape: ", features.shape)
+    # print("labels.shape: ", labels.shape)
+    # print("Visualizing...")
+    # visualize_representation(features, labels)
