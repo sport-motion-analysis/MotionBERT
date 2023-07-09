@@ -121,7 +121,7 @@ def visualize_representation(features, labels):
     # std_features = (flat_features - mean) / std
 
     # Apply t-SNE to reduce the dimensionality to 2 dimensions
-    tsne = TSNE(n_components=2, random_state=42, init='pca', learning_rate='auto', perplexity=30)
+    tsne = TSNE(n_components=2, random_state=42, init='pca', learning_rate='auto', perplexity=30, n_iter=1200)
     embedded_data = tsne.fit_transform(flat_features)
 
     # Plot the reduced features using a scatter plot
