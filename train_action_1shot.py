@@ -138,7 +138,7 @@ def visualize(test_loader, model):
     ax1.set_aspect('equal')
 
     # Show legend in the second subplot
-    ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=18)
+    ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=18, markerscale=10)
 
     # Remove the x and y ticks and labels from the second subplot
     ax2.set_xticks([])
