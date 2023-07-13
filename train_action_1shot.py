@@ -24,6 +24,8 @@ from lib.model.model_action import ActionNet
 
 from lib.model.loss_supcon import SupConLoss
 from pytorch_metric_learning import samplers
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 random.seed(0)
 np.random.seed(0)
@@ -68,6 +70,85 @@ def validate(anchor_loader, test_loader, model):
     assert len(pred)==len(test_labels)
     acc = sum(pred==test_labels) / len(pred)
     return acc
+
+def create_action_dictionary():
+    filename = 'data/action/ntu_actions.txt' 
+    action_dict = {}
+    with open(filename, 'r') as file:
+        lines = file.readlines() 
+        for index, line in enumerate(lines):
+            if not index % 6:
+                n = index // 6  # Calculate the value of n
+                if index > len(lines):
+                    break
+                action = line.strip().split('. ')[1]  # Extract the action name
+                action_dict[n] = action
+    return action_dict
+
+def visualize(test_loader, model):
+    # test_feats, test_labels = extract_feats(test_loader, model)
+    # test_feats = test_feats.cpu().numpy()
+    # test_labels = test_labels.cpu().numpy()
+    # # save features and labels
+    # np.save('checkpoint/visualize/test_feats.npy', test_feats)
+    # np.save('checkpoint/visualize/test_labels.npy', test_labels)
+    # # print(test_feats.shape)
+    # # print(test_labels.shape)
+
+    # Call the function and print the resulting dictionary
+    action_dictionary = create_action_dictionary()
+
+    # load features and labels
+    create_action_dictionary()
+    test_feats = np.load('checkpoint/visualize/test_feats.npy')
+    test_labels = np.load('checkpoint/visualize/test_labels.npy')
+    
+    # Apply t-SNE to reduce the dimensionality of the features to 2D
+    tsne = TSNE(n_components=2, random_state=0)
+    test_feats_2d = tsne.fit_transform(test_feats)
+
+    # plt.figure(figsize=(15, 15))
+    # # Plot the 2D features with different colors for each class
+    # legend = [action_dictionary[i] for i in np.unique(test_labels)]
+    # cmap = plt.get_cmap('tab10', len(legend))
+    # for i, label in enumerate(legend):
+    #     plt.scatter(test_feats_2d[test_labels == i, 0], test_feats_2d[test_labels == i, 1], c=[cmap(i)], s=0.5, label=label)
+    # # Show legend
+    # # plt.legend(loc='upper left', bbox_to_anchor=(0, 1))
+    # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=18)
+    # # Save figure
+    # plt.savefig('tsne.png')
+    # print('tsne.png saved')
+
+    # Create a figure with two subplots, one for the scatter plot and one for the legend
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(15, 15))
+
+    # Plot the 2D features with different colors for each class
+    legend = [action_dictionary[i] for i in np.unique(test_labels)]
+    cmap = plt.get_cmap('tab10', len(legend))
+    for i, label in enumerate(legend):
+        ax1.scatter(test_feats_2d[test_labels == i, 0], test_feats_2d[test_labels == i, 1], c=[cmap(i)], s=0.5, label=label)
+
+    # Set the title and axis labels for the scatter plot
+    ax1.set_title('t-SNE Visualization of Test Features')
+    ax1.set_xlabel('t-SNE Dimension 1')
+    ax1.set_ylabel('t-SNE Dimension 2')
+
+    # Set the aspect ratio of the scatter plot to be equal
+    ax1.set_aspect('equal')
+
+    # Show legend in the second subplot
+    ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=18)
+
+    # Remove the x and y ticks and labels from the second subplot
+    ax2.set_xticks([])
+    ax2.set_yticks([])
+    ax2.set_frame_on(False)
+
+    # Save figure
+    plt.savefig('checkpoint/visualize/tsne.png')
+    print('tsne.png saved')
+
 
 def train_with_config(args, opts):
     print(args)
@@ -123,7 +204,7 @@ def train_with_config(args, opts):
               'shuffle': False,
               'num_workers': 1,
               'pin_memory': True,
-              'prefetch_factor': 4,
+            #   'prefetch_factor': 4,
               'persistent_workers': True
         }
 
@@ -132,7 +213,7 @@ def train_with_config(args, opts):
               'shuffle': False,
               'num_workers': 1,
               'pin_memory': True,
-              'prefetch_factor': 4,
+            #   'prefetch_factor': 4,
               'persistent_workers': True
         }
     data_path_1shot = 'data/action/ntu120_hrnet_oneshot.pkl'
@@ -237,8 +318,7 @@ def train_with_config(args, opts):
                 'best_acc' : best_acc
                 }, best_chk_path)
     if opts.evaluate:
-        test_top1 = validate(anchor_loader, test_loader, model)
-        print(test_top1)
+        visualize(test_loader, model)
 if __name__ == "__main__":
     opts = parse_args()
     args = get_config(opts.config)
