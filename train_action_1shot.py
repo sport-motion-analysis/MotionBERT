@@ -31,13 +31,13 @@ torch.manual_seed(0)
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/pretrain.yaml", help="Path to the config file.")
-    parser.add_argument('-c', '--checkpoint', default='checkpoint', type=str, metavar='PATH', help='checkpoint directory')
-    parser.add_argument('-p', '--pretrained', default='checkpoint', type=str, metavar='PATH', help='pretrained checkpoint directory')
+    parser.add_argument("--config", type=str, default="configs/action/MB_ft_NTU120_oneshot.yaml", help="Path to the config file.")
+    parser.add_argument('-c', '--checkpoint', default='checkpoint/feature', type=str, metavar='PATH', help='checkpoint directory')
+    parser.add_argument('-p', '--pretrained', default='checkpoint/released/', type=str, metavar='PATH', help='pretrained checkpoint directory')
     parser.add_argument('-r', '--resume', default='', type=str, metavar='FILENAME', help='checkpoint to resume (file name)')
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-freq', '--print_freq', default=100)
-    parser.add_argument('-ms', '--selection', default='best_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
+    parser.add_argument('-ms', '--selection', default='latest_epoch_lite.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
     opts = parser.parse_args()
     return opts
 
@@ -63,6 +63,7 @@ def validate(anchor_loader, test_loader, model):
     train_feats = train_feats.unsqueeze(1)
     test_feats = test_feats.unsqueeze(0)
     dis = F.cosine_similarity(train_feats, test_feats, dim=-1)
+    dis = dis.cpu()
     pred = train_labels[torch.argmax(dis, dim=0)]
     assert len(pred)==len(test_labels)
     acc = sum(pred==test_labels) / len(pred)
@@ -81,14 +82,16 @@ def train_with_config(args, opts):
         if opts.resume or opts.evaluate:
             pass
         else:
-            chk_filename = os.path.join(opts.pretrained, "best_epoch.bin")
+            chk_filename = os.path.join(opts.pretrained, opts.selection)
             print('Loading backbone', chk_filename)
-            checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint['model_pos'].items():
-                name = k[7:]                                            # remove 'module.'
-                new_state_dict[name] = v 
-            model_backbone.load_state_dict(new_state_dict, strict=True)
+            # checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
+            # new_state_dict = OrderedDict()
+            # for k, v in checkpoint['model_pos'].items():
+            #     name = k[7:]                                            # remove 'module.'
+            #     new_state_dict[name] = v 
+            # model_backbone.load_state_dict(new_state_dict, strict=True)
+            checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)['model_pos']
+            model_backbone = load_pretrained_weights(model_backbone, checkpoint)
             if args.partial_train:
                 model_backbone = partial_train_layers(model_backbone, args.partial_train)
     model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
@@ -118,7 +121,7 @@ def train_with_config(args, opts):
     anchorloader_params = {
               'batch_size': args.batch_size,
               'shuffle': False,
-              'num_workers': 8,
+              'num_workers': 1,
               'pin_memory': True,
               'prefetch_factor': 4,
               'persistent_workers': True
@@ -127,7 +130,7 @@ def train_with_config(args, opts):
     testloader_params = {
               'batch_size': args.batch_size,
               'shuffle': False,
-              'num_workers': 8,
+              'num_workers': 1,
               'pin_memory': True,
               'prefetch_factor': 4,
               'persistent_workers': True
@@ -175,7 +178,7 @@ def train_with_config(args, opts):
                 
         # Training
         for epoch in range(st, args.epochs):
-            print('Training epoch %d.' % epoch)
+            print('Training epoch %d' % epoch, '/%d' % args.epochs)
             losses_train = AverageMeter()
             batch_time = AverageMeter()
             data_time = AverageMeter()
