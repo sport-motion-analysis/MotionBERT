@@ -67,6 +67,7 @@ with torch.no_grad():
     for batch_input in tqdm(test_loader):
         N, T = batch_input.shape[:2]
         if torch.cuda.is_available():
+            print("Using GPU ")
             batch_input = batch_input.cuda()
         if args.no_conf:
             batch_input = batch_input[:, :, :, :2]

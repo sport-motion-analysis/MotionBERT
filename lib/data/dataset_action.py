@@ -128,7 +128,7 @@ def human_tracking(x):
         return x_new
 
 class ActionDataset(Dataset):
-    def __init__(self, data_path, data_split, n_frames=243, random_move=True, scale_range=[1,1], check_split=True):   # data_split: train/test etc.
+    def __init__(self, data_path, data_split, n_frames=243, random_move=True, scale_range=[1,1], check_split=True, convert_to_2h36=True):   # data_split: train/test etc.
         np.random.seed(0)
         dataset = read_pkl(data_path)
         if check_split:
@@ -145,10 +145,12 @@ class ActionDataset(Dataset):
         for sample in annotations:
             if check_split and (not sample['frame_dir'] in self.split):
                 continue
+            # this takes care of the sampling of frames and how many frames we want 
             resample_id = resample(ori_len=sample['total_frames'], target_len=n_frames, randomness=self.is_train)
             motion_cam = make_cam(x=sample['keypoint'], img_shape=sample['img_shape'])
             motion_cam = human_tracking(motion_cam)
-            motion_cam = coco2h36m(motion_cam)
+            if convert_to_2h36: 
+                motion_cam = coco2h36m(motion_cam)
             motion_conf = sample['keypoint_score'][..., None]
             motion = np.concatenate((motion_cam[:,resample_id], motion_conf[:,resample_id]), axis=-1)
             if motion.shape[0]==1:                                  # Single person, make a fake zero person
@@ -180,7 +182,7 @@ class NTURGBD(ActionDataset):
         else:
             result = motion
         return result.astype(np.float32), label
-    
+
 class NTURGBD1Shot(ActionDataset):
     def __init__(self, data_path, data_split, n_frames=243, random_move=True, scale_range=[1,1], check_split=False):
         super(NTURGBD1Shot, self).__init__(data_path, data_split, n_frames, random_move, scale_range, check_split)
@@ -204,3 +206,10 @@ class NTURGBD1Shot(ActionDataset):
         else:
             result = motion
         return result.astype(np.float32), label
+    
+
+
+
+
+
+

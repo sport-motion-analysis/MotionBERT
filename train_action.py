@@ -35,6 +35,7 @@ def parse_args():
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-freq', '--print_freq', default=100)
     parser.add_argument('-ms', '--selection', default='latest_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
+    parser.add_argument('-tb', '--train_backbone', default=False, help="To train or not the backbone")
     opts = parser.parse_args()
     return opts
 
@@ -95,6 +96,13 @@ def train_with_config(args, opts):
     if args.partial_train:
         model_backbone = partial_train_layers(model_backbone, args.partial_train)
     model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
+    if opts.train_backbone: 
+        for name, module in model.named_modules():
+            if name.startswith("module.head."):
+                for param in module.parameters():
+                    param.requires_grad = False
+
+    
     criterion = torch.nn.CrossEntropyLoss()
     if torch.cuda.is_available():
         model = nn.DataParallel(model)
@@ -102,8 +110,13 @@ def train_with_config(args, opts):
         criterion = criterion.cuda() 
     best_acc = 0
     model_params = 0
-    for parameter in model.parameters():
-        model_params = model_params + parameter.numel()
+    for name, parameter in model.named_parameters():
+        if not opts.train_backbone: 
+            if name.startswith("model.head."):
+                model_params = model_params + parameter.numel()
+        else: 
+            model_params = model_params + parameter.numel()
+
     print('INFO: Trainable parameter count:', model_params)
     print('Loading dataset...')
     trainloader_params = {
@@ -122,7 +135,8 @@ def train_with_config(args, opts):
           'prefetch_factor': 4,
           'persistent_workers': True
     }
-    data_path = 'data/action/%s.pkl' % args.dataset
+    data_path = 'data/action/%s.pkl' % args.dataset # TODO : add to the CLI 
+    print(data_path)
     ntu60_xsub_train = NTURGBD(data_path=data_path, data_split=args.data_split+'_train', n_frames=args.clip_len, random_move=args.random_move, scale_range=args.scale_range_train)
     ntu60_xsub_val = NTURGBD(data_path=data_path, data_split=args.data_split+'_val', n_frames=args.clip_len, random_move=False, scale_range=args.scale_range_test)
 
@@ -136,15 +150,28 @@ def train_with_config(args, opts):
         chk_filename = opts.evaluate if opts.evaluate else opts.resume
         print('Loading checkpoint', chk_filename)
         checkpoint = torch.load(chk_filename, map_location=lambda storage, loc: storage)
-        model.load_state_dict(checkpoint['model'], strict=True)
+        
+        if not opts.train_backbone: 
+            filtered_state_dict = {k: v for k, v in checkpoint['model'].items() if k.startswith("module.head.")}
+            model.load_state_dict(filtered_state_dict, strict=False)
+        else:
+            model.load_state_dict(checkpoint['model'], strict=True)
     
     if not opts.evaluate:
-        optimizer = optim.AdamW(
-            [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
-                  {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
-            ],      lr=args.lr_backbone, 
-                    weight_decay=args.weight_decay
-        )
+        if not opts.train_backbone:
+            optimizer = optim.AdamW(
+                [ 
+                    {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
+                ],      lr=args.lr_backbone, 
+                        weight_decay=args.weight_decay
+            )
+        else: 
+            optimizer = optim.AdamW(
+                [     {"params": filter(lambda p: p.requires_grad, model.module.backbone.parameters()), "lr": args.lr_backbone},
+                    {"params": filter(lambda p: p.requires_grad, model.module.head.parameters()), "lr": args.lr_head},
+                ],      lr=args.lr_backbone, 
+                        weight_decay=args.weight_decay
+            )
 
         scheduler = StepLR(optimizer, step_size=1, gamma=args.lr_decay)
         st = 0
@@ -239,5 +266,6 @@ def train_with_config(args, opts):
 
 if __name__ == "__main__":
     opts = parse_args()
+    # the dataset is mentioned in the config file 
     args = get_config(opts.config)
     train_with_config(args, opts)
