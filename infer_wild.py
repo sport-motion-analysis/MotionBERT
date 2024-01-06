@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('-j', '--json_path', type=str, help='alphapose detection result json path')
     parser.add_argument('-v', '--vid_path', type=str, help='video path')
     parser.add_argument('-o', '--out_path', type=str, help='output path')
-    parser.add_argument('--pixel', action='store_true', help='align with pixle coordinates')
+    parser.add_argument('--pixel', action='store_true', help='align with pixle coordinates') 
     parser.add_argument('--focus', type=int, default=None, help='target person id')
     parser.add_argument('--clip_len', type=int, default=243, help='clip length for network input')
     opts = parser.parse_args()

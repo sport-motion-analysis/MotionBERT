@@ -348,15 +348,6 @@ class DSTformer(nn.Module):
                 alpha = alpha.softmax(dim=-1)
                 x = x_st * alpha[:,:,0:1] + x_ts * alpha[:,:,1:2]
 
-
-                del blk_st 
-                del blk_ts
-                del att
-                del alpha 
-                del x_ts 
-                del x_st
-                torch.cuda.empty_cache()
-
             else:
                 x = (x_st + x_ts)*0.5
         x = self.norm(x)

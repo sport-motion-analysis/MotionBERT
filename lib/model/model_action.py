@@ -48,12 +48,12 @@ class ActionHeadEmbed(nn.Module):
         return feat
 
 class ActionNet(nn.Module):
-    def __init__(self, backbone, dim_rep=512, num_classes=60, dropout_ratio=0., version='class', hidden_dim=2048, num_joints=17):
+    def __init__(self, backbone, dim_rep=512, num_classes=60, dropout_ratio=0., version='class', hidden_dim=2048, head_hidden_dim=2048, num_joints=17):
         super(ActionNet, self).__init__()
         self.backbone = backbone
         self.feat_J = num_joints
         if version=='class':
-            self.head = ActionHeadClassification(dropout_ratio=dropout_ratio, dim_rep=dim_rep, num_classes=num_classes, num_joints=num_joints)
+            self.head = ActionHeadClassification(dropout_ratio=dropout_ratio, dim_rep=dim_rep, hidden_dim=head_hidden_dim, num_classes=num_classes, num_joints=num_joints)
         elif version=='embed':
             self.head = ActionHeadEmbed(dropout_ratio=dropout_ratio, dim_rep=dim_rep, hidden_dim=hidden_dim, num_joints=num_joints)
         else:
@@ -69,3 +69,11 @@ class ActionNet(nn.Module):
         feat = feat.reshape([N, M, T, self.feat_J, -1])      # (N, M, T, J, C)
         out = self.head(feat)
         return out
+    
+    def count_parameters(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        return total_params
+    
+    def count_trainable_parameters(self):
+        total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return total_params

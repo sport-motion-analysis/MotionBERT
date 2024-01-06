@@ -21,13 +21,14 @@ num_heads: 8
 att_fuse: True
 num_joints: 17
 hidden_dim: 2048
-dropout_ratio: 0.5
+dropout_ratio: 0.2
+head_hidden_dim: 512
 
 # Data
 dataset: custom_tennis_dataset
 data_split: xsub
 clip_len: 180
-action_classes: 60
+action_classes: 4
 
 # Augmentation
 random_move: True

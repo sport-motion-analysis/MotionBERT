@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
     parser.add_argument('-freq', '--print_freq', default=100)
     parser.add_argument('-ms', '--selection', default='latest_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to finetune (file name)')
-    parser.add_argument('-tb', '--train_backbone', default=False, help="To train or not the backbone")
+    parser.add_argument('-fb', '--freeze_backbone', default=True, help="Freezes the backbone if true and trains the head only.")
     opts = parser.parse_args()
     return opts
 
@@ -95,13 +95,15 @@ def train_with_config(args, opts):
             model_backbone = load_pretrained_weights(model_backbone, checkpoint)
     if args.partial_train:
         model_backbone = partial_train_layers(model_backbone, args.partial_train)
-    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, num_joints=args.num_joints)
-    if opts.train_backbone: 
-        for name, module in model.named_modules():
-            if name.startswith("module.head."):
-                for param in module.parameters():
-                    param.requires_grad = False
+    model = ActionNet(backbone=model_backbone, dim_rep=args.dim_rep, num_classes=args.action_classes, dropout_ratio=args.dropout_ratio, version=args.model_version, hidden_dim=args.hidden_dim, head_hidden_dim=args.head_hidden_dim, num_joints=args.num_joints)
+    # freezes backbone
+    if opts.freeze_backbone: 
+        for param in model.backbone.parameters():
+            param.requires_grad = False
+        print("Backbone will not be trained", "\n")
 
+    num_trainable_params = model.count_trainable_parameters()
+    num_total_params = model.count_parameters()
     
     criterion = torch.nn.CrossEntropyLoss()
     if torch.cuda.is_available():
@@ -109,15 +111,9 @@ def train_with_config(args, opts):
         model = model.cuda()
         criterion = criterion.cuda() 
     best_acc = 0
-    model_params = 0
-    for name, parameter in model.named_parameters():
-        if not opts.train_backbone: 
-            if name.startswith("model.head."):
-                model_params = model_params + parameter.numel()
-        else: 
-            model_params = model_params + parameter.numel()
 
-    print('INFO: Trainable parameter count:', model_params)
+    print('INFO: Trainable parameter count:', num_trainable_params)
+    print('INFO: Total parameter count:', num_total_params)
     print('Loading dataset...')
     trainloader_params = {
           'batch_size': args.batch_size,
